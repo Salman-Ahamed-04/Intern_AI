@@ -11,6 +11,7 @@ import Candidates from "./components/pages/Candidates";
 import Interviews from "./components/pages/Interviews";
 import Analytics from "./components/pages/Analytics";
 import Login from "./components/pages/Login";
+import Register from "./components/pages/Register";
 import "./index.css";
 
 function ProtectedRoute({ children }) {
@@ -28,6 +29,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+      <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <Register />} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard"    element={<Dashboard />} />
