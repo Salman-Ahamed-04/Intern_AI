@@ -34,6 +34,7 @@ app.use("/api/applications", require("./routes/application.routes"));
 app.use("/api/matches",      require("./routes/match.routes"));
 app.use("/api/interviews",   require("./routes/interview.routes"));
 app.use("/api/analytics",    require("./routes/analytics.routes"));
+app.use("/api/internships",  require("./routes/internship.routes"));
 
 // 404
 app.use((req, res) => {

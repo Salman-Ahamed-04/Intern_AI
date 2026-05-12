@@ -26,12 +26,13 @@ const studentNav = [
 ];
 
 const companyNav = [
-  { to: "/dashboard",         icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/company-applicants",icon: Users,            label: "Applicants" },
-  { to: "/company-matches",   icon: Zap,              label: "Matches" },
-  { to: "/company-interviews",icon: Calendar,         label: "Interviews" },
-  { to: "/company-profile",   icon: Building2,        label: "Company Profile" },
-  { to: "/analytics",         icon: BarChart2,        label: "Analytics" },
+  { to: "/dashboard",          icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/post-internship",    icon: Briefcase,        label: "Post Internship" },
+  { to: "/company-applicants", icon: Users,            label: "Applicants" },
+  { to: "/company-matches",    icon: Zap,              label: "Matches" },
+  { to: "/company-interviews", icon: Calendar,         label: "Interviews" },
+  { to: "/company-profile",    icon: Building2,        label: "Company Profile" },
+  { to: "/analytics",          icon: BarChart2,        label: "Analytics" },
 ];
 
 export default function Sidebar() {

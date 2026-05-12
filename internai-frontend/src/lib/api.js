@@ -2,6 +2,8 @@
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
+export { BASE_URL };
+
 function getToken() {
   return localStorage.getItem("internai_token");
 }
@@ -95,4 +97,30 @@ export const analyticsApi = {
   monthly:      () => get("/analytics/monthly"),
   topCompanies: () => get("/analytics/top-companies"),
   topSkills:    () => get("/analytics/top-skills"),
+};
+
+// ── Internships ───────────────────────────────────────────────────────
+export const internshipsApi = {
+  list:      (params = {}) => get(`/internships?${new URLSearchParams(params)}`),
+  listAll:   (params = {}) => get(`/internships/admin/all?${new URLSearchParams(params)}`),
+  get:       (id)          => get(`/internships/${id}`),
+  delete:    (id)          => del(`/internships/${id}`),
+
+  // multipart — image upload
+  create: (formData) => {
+    const token = localStorage.getItem("internai_token");
+    return fetch(`${BASE_URL}/internships`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; });
+  },
+  update: (id, formData) => {
+    const token = localStorage.getItem("internai_token");
+    return fetch(`${BASE_URL}/internships/${id}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; });
+  },
 };

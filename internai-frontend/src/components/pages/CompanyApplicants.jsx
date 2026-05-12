@@ -19,9 +19,7 @@ export default function CompanyApplicants() {
     [page, status, refresh]
   );
   const { data, loading, error } = useApi(fetchFn, [page, status, refresh]);
-  const applications = (data?.data || []).filter(a =>
-    String(a.companyId?._id || a.companyId) === String(user?.profileId)
-  );
+  const applications = data?.data || [];
   const pagination = data?.pagination;
 
   const updateStatus = async (id, newStatus) => {

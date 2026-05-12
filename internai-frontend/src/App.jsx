@@ -29,6 +29,7 @@ import CompanyApplicants  from "./components/pages/CompanyApplicants";
 import CompanyMatches     from "./components/pages/CompanyMatches";
 import CompanyInterviews  from "./components/pages/CompanyInterviews";
 import CompanyProfile     from "./components/pages/CompanyProfile";
+import PostInternship     from "./components/pages/PostInternship";
 
 import "./index.css";
 
@@ -64,7 +65,6 @@ function AppRoutes() {
         <Route path="companies"    element={<ProtectedRoute roles={["admin"]}><Companies /></ProtectedRoute>} />
         <Route path="candidates"   element={<ProtectedRoute roles={["admin"]}><Candidates /></ProtectedRoute>} />
         <Route path="interviews"   element={<ProtectedRoute roles={["admin"]}><Interviews /></ProtectedRoute>} />
-
         {/* Student only */}
         <Route path="browse"           element={<ProtectedRoute roles={["student"]}><BrowseInternships /></ProtectedRoute>} />
         <Route path="my-applications"  element={<ProtectedRoute roles={["student"]}><MyApplications /></ProtectedRoute>} />
@@ -73,6 +73,7 @@ function AppRoutes() {
         <Route path="my-profile"       element={<ProtectedRoute roles={["student"]}><MyProfile /></ProtectedRoute>} />
 
         {/* Company only */}
+        <Route path="post-internship"     element={<ProtectedRoute roles={["company"]}><PostInternship /></ProtectedRoute>} />
         <Route path="company-applicants"  element={<ProtectedRoute roles={["company"]}><CompanyApplicants /></ProtectedRoute>} />
         <Route path="company-matches"     element={<ProtectedRoute roles={["company"]}><CompanyMatches /></ProtectedRoute>} />
         <Route path="company-interviews"  element={<ProtectedRoute roles={["company"]}><CompanyInterviews /></ProtectedRoute>} />
