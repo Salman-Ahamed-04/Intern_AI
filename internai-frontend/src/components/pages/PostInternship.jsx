@@ -1,11 +1,13 @@
 import { useState, useCallback } from "react";
-import { Plus, X, Edit2, Trash2, ImageIcon } from "lucide-react";
+import { Plus, X, Edit2, Trash2, ImageIcon, MapPin, Clock, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useApi } from "../../lib/useApi";
 import { internshipsApi } from "../../lib/api";
 import { useAuth } from "../../store/auth";
 import { useToast } from "../../lib/toast";
 
 const statusMap = { Open:"badge-green", Closed:"badge-gray" };
+const typeColor = { Remote:"badge-blue", "On-site":"badge-green", Hybrid:"badge-purple" };
 
 function InternshipModal({ onClose, onSaved, existing, companyId }) {
   const toast = useToast();
@@ -167,6 +169,7 @@ function InternshipModal({ onClose, onSaved, existing, companyId }) {
 export default function PostInternship() {
   const { user } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [refresh, setRefresh] = useState(0);
@@ -218,28 +221,35 @@ export default function PostInternship() {
           <button className="btn btn-primary" style={{ marginTop:12 }} onClick={() => setModal(true)}>Post your first internship</button>
         </div>
       ) : (
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(320px, 1fr))", gap:16 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(280px, 1fr))", gap:16 }}>
           {internships.map(i => (
             <div key={i._id} className="card" style={{ overflow:"hidden" }}>
               {i.imageUrl && (
-                <img src={i.imageUrl} alt={i.title} style={{ width:"100%", height:160, objectFit:"cover" }}/>
+                <img src={i.imageUrl} alt={i.title} style={{ width:"100%", height:90, objectFit:"cover", cursor:"pointer" }}
+                  onClick={() => navigate(`/internship/${i._id}`)}/>
               )}
-              <div style={{ padding:16 }}>
-                <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:8 }}>
-                  <div style={{ fontWeight:600, fontSize:14, flex:1 }}>{i.title}</div>
-                  <span className={`badge ${statusMap[i.status] || "badge-gray"}`}>{i.status}</span>
+              <div style={{ padding:14 }}>
+                <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:6 }}>
+                  <div style={{ fontWeight:600, fontSize:13, flex:1, cursor:"pointer", lineHeight:1.3 }}
+                    onClick={() => navigate(`/internship/${i._id}`)}>
+                    {i.title}
+                  </div>
+                  <span className={`badge ${statusMap[i.status] || "badge-gray"}`} style={{ marginLeft:8, flexShrink:0 }}>{i.status}</span>
                 </div>
-                <div style={{ fontSize:12, color:"var(--text-secondary)", marginBottom:6 }}>
-                  {i.location} · {i.type} {i.duration && `· ${i.duration}`}
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
+                  {i.type && <span className={`badge ${typeColor[i.type] || "badge-gray"}`} style={{ fontSize:10 }}>{i.type}</span>}
+                  {i.location && <span style={{ fontSize:10, color:"var(--text-secondary)", display:"flex", alignItems:"center", gap:2 }}><MapPin size={9}/>{i.location}</span>}
+                  {i.duration && <span style={{ fontSize:10, color:"var(--text-secondary)", display:"flex", alignItems:"center", gap:2 }}><Clock size={9}/>{i.duration}</span>}
                 </div>
-                {i.stipend && <div style={{ fontSize:12, color:"var(--primary)", fontWeight:500, marginBottom:6 }}>{i.stipend}</div>}
+                {i.stipend && <div style={{ fontSize:11, color:"var(--primary)", fontWeight:600, marginBottom:6 }}>{i.stipend}</div>}
                 <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:10 }}>
-                  {(i.skills || []).slice(0,4).map(s => <span key={s} className="badge badge-gray" style={{ fontSize:10 }}>{s}</span>)}
+                  {(i.skills || []).slice(0,3).map(s => <span key={s} className="badge badge-gray" style={{ fontSize:10 }}>{s}</span>)}
+                  {(i.skills||[]).length > 3 && <span className="badge badge-gray" style={{ fontSize:10 }}>+{i.skills.length-3}</span>}
                 </div>
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", borderTop:"var(--border)", paddingTop:10 }}>
-                  <div style={{ fontSize:11, color:"var(--text-muted)" }}>
-                    {i.applicants} applicant{i.applicants !== 1 ? "s" : ""}
-                    {i.deadline && ` · Deadline: ${i.deadline}`}
+                  <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, color:"var(--text-muted)" }}>
+                    <Users size={11}/> {i.applicants} applicant{i.applicants !== 1 ? "s" : ""}
+                    {i.deadline && <span style={{ marginLeft:6 }}>· Due {i.deadline}</span>}
                   </div>
                   <div style={{ display:"flex", gap:6 }}>
                     <button className="btn btn-ghost" style={{ padding:"4px 8px" }} onClick={() => setEditing(i)}><Edit2 size={13}/></button>

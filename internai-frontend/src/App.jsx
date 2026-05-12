@@ -9,6 +9,7 @@ import Dashboard    from "./components/pages/Dashboard";
 import Analytics    from "./components/pages/Analytics";
 import Login        from "./components/pages/Login";
 import Register     from "./components/pages/Register";
+import InternshipDetail from "./components/pages/InternshipDetail";
 
 // Admin-only pages
 import Applications from "./components/pages/Applications";
@@ -56,8 +57,9 @@ function AppRoutes() {
         <Route index element={<Navigate to="/dashboard" replace />} />
 
         {/* All roles */}
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="analytics" element={<Analytics />} />
+        <Route path="dashboard"        element={<Dashboard />} />
+        <Route path="analytics"        element={<Analytics />} />
+        <Route path="internship/:id"   element={<InternshipDetail />} />
 
         {/* Admin only */}
         <Route path="applications" element={<ProtectedRoute roles={["admin"]}><Applications /></ProtectedRoute>} />
