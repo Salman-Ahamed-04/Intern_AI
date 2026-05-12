@@ -40,6 +40,8 @@ export const dashboardApi = {
   stats:              () => get("/dashboard/stats"),
   topMatches:         () => get("/dashboard/top-matches"),
   upcomingInterviews: () => get("/dashboard/upcoming-interviews"),
+  student:            () => get("/dashboard/student"),
+  company:            () => get("/dashboard/company"),
 };
 
 // ── Candidates ────────────────────────────────────────────────────────

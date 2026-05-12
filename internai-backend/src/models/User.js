@@ -3,11 +3,14 @@ const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password: { type: String, required: true },
-    role: { type: String, enum: ["admin", "staff"], default: "staff" },
-    isActive: { type: Boolean, default: true },
+    name:      { type: String, required: true, trim: true },
+    email:     { type: String, required: true, unique: true, lowercase: true, trim: true },
+    password:  { type: String, required: true },
+    role:      { type: String, enum: ["admin", "student", "company"], default: "student" },
+    isActive:  { type: Boolean, default: true },
+    // links to Candidate or Company profile
+    profileId: { type: mongoose.Schema.Types.ObjectId, refPath: "profileModel" },
+    profileModel: { type: String, enum: ["Candidate", "Company"] },
   },
   { timestamps: true }
 );
