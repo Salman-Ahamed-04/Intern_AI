@@ -1,6 +1,7 @@
-import { Users, Building2, Briefcase, CheckCircle, TrendingUp, TrendingDown, Zap } from "lucide-react";
+import { Users, Building2, Briefcase, CheckCircle, Zap } from "lucide-react";
 import { useApi } from "../../lib/useApi";
 import { dashboardApi } from "../../lib/api";
+import { useAuth } from "../../store/auth";
 
 const scoreColor = (s) => s >= 85 ? "#1a9e75" : s >= 70 ? "#f0992b" : "#e24b4a";
 
@@ -34,6 +35,7 @@ function StatCards({ stats }) {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const { data: statsRes,      loading: sl } = useApi(dashboardApi.stats);
   const { data: matchesRes,    loading: ml } = useApi(dashboardApi.topMatches);
   const { data: interviewsRes, loading: il } = useApi(dashboardApi.upcomingInterviews);
@@ -47,7 +49,7 @@ export default function Dashboard() {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="page-header">
           <div>
-            <div className="page-title">Welcome back, Admin!</div>
+            <div className="page-title">Welcome back, {user?.name || "Admin"}!</div>
             <div className="page-subtitle">InternAI Dashboard</div>
           </div>
         </div>

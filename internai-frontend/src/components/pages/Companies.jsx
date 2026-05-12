@@ -1,21 +1,39 @@
 import { useState, useCallback } from "react";
-import { Search, Plus, Globe, Mail, X } from "lucide-react";
+import { Search, Plus, Globe, Mail, X, Trash2, Edit2 } from "lucide-react";
 import { useApi } from "../../lib/useApi";
 import { companiesApi } from "../../lib/api";
 import { useToast } from "../../lib/toast";
 
-function AddCompanyModal({ onClose, onSaved }) {
+function CompanyModal({ onClose, onSaved, existing }) {
   const toast = useToast();
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name:"", industry:"", location:"", contactPerson:"", email:"", website:"", openRoles:0, status:"Active" });
+  const [form, setForm] = useState(existing ? {
+    name:          existing.name,
+    industry:      existing.industry || "",
+    location:      existing.location || "",
+    contactPerson: existing.contactPerson || "",
+    email:         existing.email || "",
+    website:       existing.website || "",
+    openRoles:     existing.openRoles || 0,
+    totalHires:    existing.totalHires || 0,
+    status:        existing.status,
+  } : { name:"", industry:"", location:"", contactPerson:"", email:"", website:"", openRoles:0, totalHires:0, status:"Active" });
+
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   const handleSave = async () => {
     if (!form.name) { toast("Company name is required","error"); return; }
     setSaving(true);
     try {
-      await companiesApi.create({ ...form, openRoles: parseInt(form.openRoles)||0 });
-      toast("Company added!"); onSaved(); onClose();
+      const payload = { ...form, openRoles: parseInt(form.openRoles)||0, totalHires: parseInt(form.totalHires)||0 };
+      if (existing) {
+        await companiesApi.update(existing._id, payload);
+        toast("Company updated!");
+      } else {
+        await companiesApi.create(payload);
+        toast("Company added!");
+      }
+      onSaved(); onClose();
     } catch(e) { toast(e.message||"Failed","error"); } finally { setSaving(false); }
   };
 
@@ -23,7 +41,7 @@ function AddCompanyModal({ onClose, onSaved }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <div className="modal-header">
-          <span className="modal-title">Add Company</span>
+          <span className="modal-title">{existing ? "Edit Company" : "Add Company"}</span>
           <button className="btn btn-ghost" style={{padding:"4px 6px"}} onClick={onClose}><X size={15}/></button>
         </div>
         <div className="modal-body">
@@ -47,9 +65,15 @@ function AddCompanyModal({ onClose, onSaved }) {
               <input className="input" type="number" min="0" value={form.openRoles} onChange={e=>set("openRoles",e.target.value)}/>
             </div>
           </div>
-          <div className="form-group">
-            <label className="form-label">Contact Person</label>
-            <input className="input" placeholder="John Doe" value={form.contactPerson} onChange={e=>set("contactPerson",e.target.value)}/>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Total Hires</label>
+              <input className="input" type="number" min="0" value={form.totalHires} onChange={e=>set("totalHires",e.target.value)}/>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Contact Person</label>
+              <input className="input" placeholder="John Doe" value={form.contactPerson} onChange={e=>set("contactPerson",e.target.value)}/>
+            </div>
           </div>
           <div className="form-row">
             <div className="form-group">
@@ -70,7 +94,9 @@ function AddCompanyModal({ onClose, onSaved }) {
         </div>
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving?"Saving…":"Add Company"}</button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : existing ? "Save Changes" : "Add Company"}
+          </button>
         </div>
       </div>
     </div>
@@ -82,7 +108,9 @@ export default function Companies() {
   const [status,  setStatus]  = useState("All");
   const [page,    setPage]    = useState(1);
   const [modal,   setModal]   = useState(false);
+  const [editing, setEditing] = useState(null);
   const [refresh, setRefresh] = useState(0);
+  const toast = useToast();
 
   const fetchFn = useCallback(
     () => companiesApi.list({ page, limit: 12, search, ...(status!=="All"&&{status}) }),
@@ -92,9 +120,24 @@ export default function Companies() {
   const companies  = data?.data || [];
   const pagination = data?.pagination;
 
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this company?")) return;
+    try {
+      await companiesApi.delete(id);
+      toast("Company deleted");
+      setRefresh(r=>r+1);
+    } catch(e) { toast(e.message||"Failed to delete","error"); }
+  };
+
   return (
     <div className="page-enter">
-      {modal && <AddCompanyModal onClose={()=>setModal(false)} onSaved={()=>setRefresh(r=>r+1)}/>}
+      {(modal || editing) && (
+        <CompanyModal
+          existing={editing}
+          onClose={()=>{ setModal(false); setEditing(null); }}
+          onSaved={()=>setRefresh(r=>r+1)}
+        />
+      )}
 
       <div className="page-header">
         <div>
@@ -143,7 +186,7 @@ export default function Companies() {
         ) : (
           <>
             <table>
-              <thead><tr><th>Company</th><th>Industry</th><th>Location</th><th>Contact</th><th>Open Roles</th><th>Total Hires</th><th>Status</th></tr></thead>
+              <thead><tr><th>Company</th><th>Industry</th><th>Location</th><th>Contact</th><th>Open Roles</th><th>Total Hires</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody>
                 {companies.map(c=>(
                   <tr key={c._id}>
@@ -162,6 +205,12 @@ export default function Companies() {
                     <td><span style={{background:"var(--primary-light)",color:"var(--primary)",fontWeight:600,fontSize:12,padding:"2px 8px",borderRadius:4}}>{c.openRoles}</span></td>
                     <td style={{fontWeight:600,fontSize:13}}>{c.totalHires}</td>
                     <td><span className={`badge ${c.status==="Active"?"badge-green":"badge-gray"}`}>{c.status}</span></td>
+                    <td>
+                      <div style={{display:"flex",gap:4}}>
+                        <button className="btn btn-ghost" style={{padding:"4px 7px"}} title="Edit" onClick={()=>setEditing(c)}><Edit2 size={13}/></button>
+                        <button className="btn btn-ghost" style={{padding:"4px 7px",color:"#e24b4a"}} title="Delete" onClick={()=>handleDelete(c._id)}><Trash2 size={13}/></button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

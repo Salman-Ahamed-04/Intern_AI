@@ -1,36 +1,51 @@
 import { useState, useCallback } from "react";
-import { Zap, Plus, X } from "lucide-react";
+import { Zap, Plus, X, Trash2, Edit2 } from "lucide-react";
 import { useApi } from "../../lib/useApi";
 import { matchesApi, candidatesApi, companiesApi } from "../../lib/api";
 import { useToast } from "../../lib/toast";
 
+const STATUSES = ["In Review", "Applied", "Interview", "Offer Sent", "Rejected"];
 const statusMap = { "In Review":"badge-yellow","Interview":"badge-green","Applied":"badge-blue","Offer Sent":"badge-green","Rejected":"badge-red" };
 const scoreColor = (s) => s >= 85 ? "#1a9e75" : s >= 70 ? "#f0992b" : "#e24b4a";
 
-function AddMatchModal({ onClose, onSaved }) {
+function MatchModal({ onClose, onSaved, existing }) {
   const toast = useToast();
   const [saving, setSaving] = useState(false);
-  const { data: candData } = useApi(() => candidatesApi.list({ limit: 100 }), []);
-  const { data: compData } = useApi(() => companiesApi.list({ limit: 100 }), []);
+  const { data: candData } = useApi(() => candidatesApi.list({ limit: 200 }), []);
+  const { data: compData } = useApi(() => companiesApi.list({ limit: 200 }), []);
   const candidates = candData?.data || [];
   const companies  = compData?.data || [];
 
-  const [form, setForm] = useState({ candidateId:"", companyId:"", role:"", aiScore:75, matchedSkills:"", status:"In Review" });
+  const [form, setForm] = useState(existing ? {
+    candidateId:   existing.candidateId?._id || existing.candidateId,
+    companyId:     existing.companyId?._id   || existing.companyId,
+    role:          existing.role,
+    aiScore:       existing.aiScore,
+    matchedSkills: (existing.matchedSkills||[]).join(", "),
+    status:        existing.status,
+  } : { candidateId:"", companyId:"", role:"", aiScore:75, matchedSkills:"", status:"In Review" });
+
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   const handleSave = async () => {
     if (!form.candidateId || !form.companyId || !form.role) { toast("Candidate, company and role are required","error"); return; }
     setSaving(true);
     try {
-      await matchesApi.create({
+      const payload = {
         ...form,
         aiScore: parseInt(form.aiScore)||75,
         matchedSkills: form.matchedSkills.split(",").map(s=>s.trim()).filter(Boolean)
-      });
-      toast("Match created successfully!");
+      };
+      if (existing) {
+        await matchesApi.update(existing._id, payload);
+        toast("Match updated!");
+      } else {
+        await matchesApi.create(payload);
+        toast("Match created!");
+      }
       onSaved(); onClose();
     } catch(e) {
-      toast(e.message||"Failed to create match","error");
+      toast(e.message||"Failed","error");
     } finally { setSaving(false); }
   };
 
@@ -38,7 +53,7 @@ function AddMatchModal({ onClose, onSaved }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <div className="modal-header">
-          <span className="modal-title">Create New Match</span>
+          <span className="modal-title">{existing ? "Edit Match" : "Create New Match"}</span>
           <button className="btn btn-ghost" style={{padding:"4px 6px"}} onClick={onClose}><X size={15}/></button>
         </div>
         <div className="modal-body">
@@ -73,13 +88,13 @@ function AddMatchModal({ onClose, onSaved }) {
           <div className="form-group">
             <label className="form-label">Status</label>
             <select className="input" value={form.status} onChange={e=>set("status",e.target.value)}>
-              {["In Review","Applied","Interview","Offer Sent","Rejected"].map(s=><option key={s}>{s}</option>)}
+              {STATUSES.map(s=><option key={s}>{s}</option>)}
             </select>
           </div>
         </div>
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving?"Saving…":"Create Match"}</button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving?"Saving…": existing ? "Save Changes" : "Create Match"}</button>
         </div>
       </div>
     </div>
@@ -90,7 +105,9 @@ export default function Matches() {
   const [status,  setStatus]  = useState("All");
   const [page,    setPage]    = useState(1);
   const [modal,   setModal]   = useState(false);
+  const [editing, setEditing] = useState(null);
   const [refresh, setRefresh] = useState(0);
+  const toast = useToast();
 
   const fetchFn = useCallback(
     () => matchesApi.list({ page, limit: 10, ...(status!=="All"&&{status}) }),
@@ -100,9 +117,24 @@ export default function Matches() {
   const matches    = data?.data || [];
   const pagination = data?.pagination;
 
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this match?")) return;
+    try {
+      await matchesApi.delete(id);
+      toast("Match deleted");
+      setRefresh(r=>r+1);
+    } catch(e) { toast(e.message||"Failed to delete","error"); }
+  };
+
   return (
     <div className="page-enter">
-      {modal && <AddMatchModal onClose={()=>setModal(false)} onSaved={()=>setRefresh(r=>r+1)}/>}
+      {(modal || editing) && (
+        <MatchModal
+          existing={editing}
+          onClose={()=>{ setModal(false); setEditing(null); }}
+          onSaved={()=>setRefresh(r=>r+1)}
+        />
+      )}
 
       <div className="page-header">
         <div>
@@ -117,7 +149,7 @@ export default function Matches() {
           <Zap size={14} style={{color:"var(--primary)"}}/>
           <span style={{fontWeight:600,fontSize:13,flex:1}}>All Matches</span>
           <div className="tabs">
-            {["All","In Review","Interview","Offer Sent","Rejected"].map(s=>(
+            {["All",...STATUSES].map(s=>(
               <button key={s} className={`tab ${status===s?"active":""}`} onClick={()=>{setStatus(s);setPage(1);}}>{s}</button>
             ))}
           </div>
@@ -132,7 +164,7 @@ export default function Matches() {
         ) : (
           <>
             <table>
-              <thead><tr><th>Candidate</th><th>Company</th><th>Role</th><th>AI Score</th><th>Matched Skills</th><th>Status</th></tr></thead>
+              <thead><tr><th>Candidate</th><th>Company</th><th>Role</th><th>AI Score</th><th>Matched Skills</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody>
                 {matches.map(m=>(
                   <tr key={m._id}>
@@ -161,6 +193,12 @@ export default function Matches() {
                       </div>
                     </td>
                     <td><span className={`badge ${statusMap[m.status]||"badge-gray"}`}>{m.status}</span></td>
+                    <td>
+                      <div style={{display:"flex",gap:4}}>
+                        <button className="btn btn-ghost" style={{padding:"4px 7px"}} title="Edit" onClick={()=>setEditing(m)}><Edit2 size={13}/></button>
+                        <button className="btn btn-ghost" style={{padding:"4px 7px",color:"#e24b4a"}} title="Delete" onClick={()=>handleDelete(m._id)}><Trash2 size={13}/></button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

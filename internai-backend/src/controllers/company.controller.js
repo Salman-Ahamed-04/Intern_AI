@@ -11,6 +11,7 @@ const getCompanies = async (req, res) => {
       query.$or = [
         { name: { $regex: search, $options: "i" } },
         { industry: { $regex: search, $options: "i" } },
+        { location: { $regex: search, $options: "i" } },
       ];
     }
 

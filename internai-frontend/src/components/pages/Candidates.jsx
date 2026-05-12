@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Search, Plus, Mail, Phone, X } from "lucide-react";
+import { Search, Plus, Mail, Phone, X, Trash2, Edit2 } from "lucide-react";
 import { useApi } from "../../lib/useApi";
 import { candidatesApi } from "../../lib/api";
 import { useToast } from "../../lib/toast";
@@ -11,10 +11,19 @@ const AVATAR_COLORS = [
   ["#fef3c7","#92400e"],["#ede9fe","#5b21b6"],["#fee2e2","#991b1b"],
 ];
 
-function AddCandidateModal({ onClose, onSaved }) {
+function CandidateModal({ onClose, onSaved, existing }) {
   const toast = useToast();
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(existing ? {
+    name:       existing.name,
+    email:      existing.email,
+    phone:      existing.phone || "",
+    university: existing.university || "",
+    degree:     existing.degree || "",
+    gpa:        existing.gpa || "",
+    skills:     (existing.skills||[]).join(", "),
+    status:     existing.status,
+  } : {
     name: "", email: "", phone: "", university: "", degree: "",
     gpa: "", skills: "", status: "Active"
   });
@@ -25,20 +34,25 @@ function AddCandidateModal({ onClose, onSaved }) {
     if (!form.name || !form.email) { toast("Name and email are required", "error"); return; }
     setSaving(true);
     try {
-      const idx = Math.floor(Math.random() * AVATAR_COLORS.length);
-      const [avatarColor, avatarTextColor] = AVATAR_COLORS[idx];
-      const initials = form.name.split(" ").map(n => n[0]).slice(0,2).join("").toUpperCase();
-      await candidatesApi.create({
+      const payload = {
         ...form,
         gpa: parseFloat(form.gpa) || 0,
         skills: form.skills.split(",").map(s => s.trim()).filter(Boolean),
-        avatarColor, avatarTextColor, initials
-      });
-      toast("Candidate added successfully!");
+      };
+      if (existing) {
+        await candidatesApi.update(existing._id, payload);
+        toast("Candidate updated!");
+      } else {
+        const idx = Math.floor(Math.random() * AVATAR_COLORS.length);
+        const [avatarColor, avatarTextColor] = AVATAR_COLORS[idx];
+        const initials = form.name.split(" ").map(n => n[0]).slice(0,2).join("").toUpperCase();
+        await candidatesApi.create({ ...payload, avatarColor, avatarTextColor, initials });
+        toast("Candidate added!");
+      }
       onSaved();
       onClose();
     } catch (e) {
-      toast(e.message || "Failed to add candidate", "error");
+      toast(e.message || "Failed", "error");
     } finally {
       setSaving(false);
     }
@@ -48,7 +62,7 @@ function AddCandidateModal({ onClose, onSaved }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <span className="modal-title">Add New Candidate</span>
+          <span className="modal-title">{existing ? "Edit Candidate" : "Add New Candidate"}</span>
           <button className="btn btn-ghost" style={{ padding: "4px 6px" }} onClick={onClose}><X size={15} /></button>
         </div>
         <div className="modal-body">
@@ -94,7 +108,7 @@ function AddCandidateModal({ onClose, onSaved }) {
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Add Candidate"}
+            {saving ? "Saving…" : existing ? "Save Changes" : "Add Candidate"}
           </button>
         </div>
       </div>
@@ -107,7 +121,9 @@ export default function Candidates() {
   const [status, setStatus] = useState("All");
   const [page,   setPage]   = useState(1);
   const [modal,  setModal]  = useState(false);
+  const [editing, setEditing] = useState(null);
   const [refresh, setRefresh] = useState(0);
+  const toast = useToast();
 
   const fetchFn = useCallback(
     () => candidatesApi.list({ page, limit: 10, search, ...(status !== "All" && { status }) }),
@@ -121,17 +137,31 @@ export default function Candidates() {
   const handleSearch = (e) => { setSearch(e.target.value); setPage(1); };
   const handleStatus = (s)  => { setStatus(s); setPage(1); };
 
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this candidate?")) return;
+    try {
+      await candidatesApi.delete(id);
+      toast("Candidate deleted");
+      setRefresh(r=>r+1);
+    } catch(e) { toast(e.message||"Failed to delete","error"); }
+  };
+
   return (
     <div className="page-enter">
-      {modal && <AddCandidateModal onClose={() => setModal(false)} onSaved={() => setRefresh(r => r+1)} />}
+      {(modal || editing) && (
+        <CandidateModal
+          existing={editing}
+          onClose={() => { setModal(false); setEditing(null); }}
+          onSaved={() => setRefresh(r => r+1)}
+        />
+      )}
 
       <div className="page-header">
         <div>
           <div className="page-title">Candidates</div>
           <div className="page-subtitle">Browse and manage student candidates</div>
         </div>
-        <button className="btn btn-primary" onClick={() => setModal(true)}><Plus size={13} /> Add Candidate</button>
-      </div>
+        <button className="btn btn-primary" onClick={() => setModal(true)}><Plus size={13} /> Add Candidate</button>      </div>
 
       {pagination && (
         <div className="grid-4">
@@ -173,7 +203,7 @@ export default function Candidates() {
           <>
             <table>
               <thead>
-                <tr><th>Candidate</th><th>University</th><th>Skills</th><th>GPA</th><th>Status</th><th>Contact</th></tr>
+                <tr><th>Candidate</th><th>University</th><th>Skills</th><th>GPA</th><th>Status</th><th>Contact</th><th>Actions</th></tr>
               </thead>
               <tbody>
                 {candidates.map(c => (
@@ -200,6 +230,12 @@ export default function Candidates() {
                       <div style={{ display: "flex", gap: 4 }}>
                         <a href={`mailto:${c.email}`}><button className="btn btn-ghost" style={{ padding: "4px 7px" }}><Mail size={13} /></button></a>
                         {c.phone && <a href={`tel:${c.phone}`}><button className="btn btn-ghost" style={{ padding: "4px 7px" }}><Phone size={13} /></button></a>}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button className="btn btn-ghost" style={{ padding: "4px 7px" }} title="Edit" onClick={() => setEditing(c)}><Edit2 size={13} /></button>
+                        <button className="btn btn-ghost" style={{ padding: "4px 7px", color: "#e24b4a" }} title="Delete" onClick={() => handleDelete(c._id)}><Trash2 size={13} /></button>
                       </div>
                     </td>
                   </tr>

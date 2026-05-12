@@ -1,32 +1,46 @@
 import { useState, useCallback } from "react";
-import { Search, Plus, X } from "lucide-react";
+import { Search, Plus, X, Trash2, Edit2 } from "lucide-react";
 import { useApi } from "../../lib/useApi";
 import { applicationsApi, candidatesApi, companiesApi } from "../../lib/api";
 import { useToast } from "../../lib/toast";
 
+const STATUSES = ["Applied", "In Review", "Interview", "Offer Sent", "Rejected"];
 const statusMap = { "Applied":"badge-blue","In Review":"badge-yellow","Interview":"badge-green","Offer Sent":"badge-green","Rejected":"badge-red" };
 
-function AddApplicationModal({ onClose, onSaved }) {
+function AppModal({ onClose, onSaved, existing }) {
   const toast = useToast();
   const [saving, setSaving] = useState(false);
-  const { data: candData } = useApi(() => candidatesApi.list({ limit: 100 }), []);
-  const { data: compData } = useApi(() => companiesApi.list({ limit: 100 }), []);
+  const { data: candData } = useApi(() => candidatesApi.list({ limit: 200 }), []);
+  const { data: compData } = useApi(() => companiesApi.list({ limit: 200 }), []);
   const candidates = candData?.data || [];
   const companies  = compData?.data || [];
 
   const today = new Date().toISOString().split("T")[0];
-  const [form, setForm] = useState({ candidateId:"", companyId:"", role:"", appliedDate: today, notes:"", status:"Applied" });
+  const [form, setForm] = useState(existing ? {
+    candidateId: existing.candidateId?._id || existing.candidateId,
+    companyId:   existing.companyId?._id   || existing.companyId,
+    role:        existing.role,
+    appliedDate: existing.appliedDate,
+    notes:       existing.notes || "",
+    status:      existing.status,
+  } : { candidateId:"", companyId:"", role:"", appliedDate: today, notes:"", status:"Applied" });
+
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   const handleSave = async () => {
     if (!form.candidateId || !form.companyId || !form.role) { toast("Candidate, company and role are required","error"); return; }
     setSaving(true);
     try {
-      await applicationsApi.create(form);
-      toast("Application created successfully!");
+      if (existing) {
+        await applicationsApi.update(existing._id, form);
+        toast("Application updated!");
+      } else {
+        await applicationsApi.create(form);
+        toast("Application created!");
+      }
       onSaved(); onClose();
     } catch(e) {
-      toast(e.message||"Failed to create application","error");
+      toast(e.message||"Failed","error");
     } finally { setSaving(false); }
   };
 
@@ -34,7 +48,7 @@ function AddApplicationModal({ onClose, onSaved }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <div className="modal-header">
-          <span className="modal-title">New Application</span>
+          <span className="modal-title">{existing ? "Edit Application" : "New Application"}</span>
           <button className="btn btn-ghost" style={{padding:"4px 6px"}} onClick={onClose}><X size={15}/></button>
         </div>
         <div className="modal-body">
@@ -65,7 +79,7 @@ function AddApplicationModal({ onClose, onSaved }) {
           <div className="form-group">
             <label className="form-label">Status</label>
             <select className="input" value={form.status} onChange={e=>set("status",e.target.value)}>
-              {["Applied","In Review","Interview","Offer Sent","Rejected"].map(s=><option key={s}>{s}</option>)}
+              {STATUSES.map(s=><option key={s}>{s}</option>)}
             </select>
           </div>
           <div className="form-group">
@@ -75,7 +89,7 @@ function AddApplicationModal({ onClose, onSaved }) {
         </div>
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving?"Saving…":"Create Application"}</button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving?"Saving…": existing ? "Save Changes" : "Create Application"}</button>
         </div>
       </div>
     </div>
@@ -87,7 +101,9 @@ export default function Applications() {
   const [status,  setStatus]  = useState("All");
   const [page,    setPage]    = useState(1);
   const [modal,   setModal]   = useState(false);
+  const [editing, setEditing] = useState(null);
   const [refresh, setRefresh] = useState(0);
+  const toast = useToast();
 
   const fetchFn = useCallback(
     () => applicationsApi.list({ page, limit: 10, search, ...(status!=="All"&&{status}) }),
@@ -97,9 +113,24 @@ export default function Applications() {
   const applications = data?.data || [];
   const pagination   = data?.pagination;
 
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this application?")) return;
+    try {
+      await applicationsApi.delete(id);
+      toast("Application deleted");
+      setRefresh(r=>r+1);
+    } catch(e) { toast(e.message||"Failed to delete","error"); }
+  };
+
   return (
     <div className="page-enter">
-      {modal && <AddApplicationModal onClose={()=>setModal(false)} onSaved={()=>setRefresh(r=>r+1)}/>}
+      {(modal || editing) && (
+        <AppModal
+          existing={editing}
+          onClose={()=>{ setModal(false); setEditing(null); }}
+          onSaved={()=>setRefresh(r=>r+1)}
+        />
+      )}
 
       <div className="page-header">
         <div>
@@ -113,11 +144,11 @@ export default function Applications() {
         <div style={{padding:"12px 16px",borderBottom:"var(--border)",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
           <div style={{position:"relative",flex:1,minWidth:180}}>
             <Search size={13} style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:"var(--text-muted)"}}/>
-            <input className="input" style={{paddingLeft:28,fontSize:12}} placeholder="Search applications…"
+            <input className="input" style={{paddingLeft:28,fontSize:12}} placeholder="Search by candidate, company, role…"
               value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/>
           </div>
           <div className="tabs">
-            {["All","Applied","In Review","Interview","Offer Sent","Rejected"].map(s=>(
+            {["All",...STATUSES].map(s=>(
               <button key={s} className={`tab ${status===s?"active":""}`} onClick={()=>{setStatus(s);setPage(1);}}>{s}</button>
             ))}
           </div>
@@ -132,7 +163,7 @@ export default function Applications() {
         ) : (
           <>
             <table>
-              <thead><tr><th>Candidate</th><th>Company</th><th>Role</th><th>Applied</th><th>Notes</th><th>Status</th></tr></thead>
+              <thead><tr><th>Candidate</th><th>Company</th><th>Role</th><th>Applied</th><th>Notes</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody>
                 {applications.map(a=>(
                   <tr key={a._id}>
@@ -148,8 +179,14 @@ export default function Applications() {
                     <td style={{fontSize:12,color:"var(--text-secondary)"}}>{a.companyId?.name}</td>
                     <td style={{fontSize:12}}>{a.role}</td>
                     <td style={{fontSize:12,color:"var(--text-muted)"}}>{a.appliedDate}</td>
-                    <td style={{fontSize:12,color:"var(--text-muted)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.notes||"—"}</td>
+                    <td style={{fontSize:12,color:"var(--text-muted)",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.notes||"—"}</td>
                     <td><span className={`badge ${statusMap[a.status]||"badge-gray"}`}>{a.status}</span></td>
+                    <td>
+                      <div style={{display:"flex",gap:4}}>
+                        <button className="btn btn-ghost" style={{padding:"4px 7px"}} title="Edit" onClick={()=>setEditing(a)}><Edit2 size={13}/></button>
+                        <button className="btn btn-ghost" style={{padding:"4px 7px",color:"#e24b4a"}} title="Delete" onClick={()=>handleDelete(a._id)}><Trash2 size={13}/></button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
