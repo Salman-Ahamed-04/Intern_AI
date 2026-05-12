@@ -103,10 +103,11 @@ export const analyticsApi = {
 export const internshipsApi = {
   list:      (params = {}) => get(`/internships?${new URLSearchParams(params)}`),
   listAll:   (params = {}) => get(`/internships/admin/all?${new URLSearchParams(params)}`),
+  pending:   ()            => get("/internships/admin/pending"),
   get:       (id)          => get(`/internships/${id}`),
   delete:    (id)          => del(`/internships/${id}`),
+  approve:   (id, data)    => put(`/internships/${id}/approve`, data),
 
-  // multipart — image upload
   create: (formData) => {
     const token = localStorage.getItem("internai_token");
     return fetch(`${BASE_URL}/internships`, {
@@ -123,4 +124,10 @@ export const internshipsApi = {
       body: formData,
     }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.message); return d; });
   },
+};
+
+// ── Company Approval ──────────────────────────────────────────────────
+export const approvalApi = {
+  pendingCompanies:    ()           => get("/companies/pending"),
+  approveCompany:      (id, data)   => put(`/companies/${id}/approve`, data),
 };

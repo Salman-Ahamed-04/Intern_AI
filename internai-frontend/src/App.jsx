@@ -9,7 +9,9 @@ import Dashboard    from "./components/pages/Dashboard";
 import Analytics    from "./components/pages/Analytics";
 import Login        from "./components/pages/Login";
 import Register     from "./components/pages/Register";
-import InternshipDetail from "./components/pages/InternshipDetail";
+import InternshipDetail  from "./components/pages/InternshipDetail";
+import Approvals         from "./components/pages/Approvals";
+import PendingApproval   from "./components/pages/PendingApproval";
 
 // Admin-only pages
 import Applications from "./components/pages/Applications";
@@ -43,6 +45,13 @@ function ProtectedRoute({ children, roles }) {
   );
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
+
+  // Company must be approved to access the portal (except profile page)
+  if (user.role === "company") {
+    const status = user?.profile?.approvalStatus;
+    if (status !== "approved") return <PendingApproval />;
+  }
+
   return children;
 }
 
@@ -62,6 +71,7 @@ function AppRoutes() {
         <Route path="internship/:id"   element={<InternshipDetail />} />
 
         {/* Admin only */}
+        <Route path="approvals"    element={<ProtectedRoute roles={["admin"]}><Approvals /></ProtectedRoute>} />
         <Route path="applications" element={<ProtectedRoute roles={["admin"]}><Applications /></ProtectedRoute>} />
         <Route path="matches"      element={<ProtectedRoute roles={["admin"]}><Matches /></ProtectedRoute>} />
         <Route path="companies"    element={<ProtectedRoute roles={["admin"]}><Companies /></ProtectedRoute>} />

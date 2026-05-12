@@ -13,6 +13,9 @@ const getInternships = async (req, res) => {
     if (type && type !== "All") query.type = type;
     if (companyId) query.companyId = companyId;
 
+    // Students only see admin-approved internships
+    query.approvalStatus = "approved";
+
     if (search) {
       query.$or = [
         { title:       { $regex: search, $options: "i" } },
@@ -84,6 +87,13 @@ const createInternship = async (req, res) => {
     const companyId = req.user.profileId;
     if (!companyId) return res.status(400).json({ success: false, message: "Company profile not found" });
 
+    // Check company is approved
+    const Company = require("../models/Company");
+    const company = await Company.findById(companyId);
+    if (!company || company.approvalStatus !== "approved") {
+      return res.status(403).json({ success: false, message: "Your company account must be approved by admin before posting internships" });
+    }
+
     const skillsArr = typeof skills === "string"
       ? skills.split(",").map(s => s.trim()).filter(Boolean)
       : (skills || []);
@@ -93,9 +103,10 @@ const createInternship = async (req, res) => {
       skills: skillsArr, deadline, status: status || "Open",
       imageUrl:      req.file?.path || "",
       imagePublicId: req.file?.filename || "",
+      approvalStatus: "pending",
     });
 
-    res.status(201).json({ success: true, message: "Internship posted", data: internship });
+    res.status(201).json({ success: true, message: "Internship submitted for admin approval", data: internship });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

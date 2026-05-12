@@ -3,17 +3,20 @@ const Company = require("../models/Company");
 const Application = require("../models/Application");
 const Match = require("../models/Match");
 const Interview = require("../models/Interview");
+const Internship = require("../models/Internship");
 
 // GET /api/dashboard/stats  (admin)
 const getStats = async (req, res) => {
   try {
-    const [activeStudents, partnerCompanies, openInternships, successfulMatches] = await Promise.all([
+    const [activeStudents, partnerCompanies, openInternships, successfulMatches, pendingCompanies, pendingInternships] = await Promise.all([
       Candidate.countDocuments({ status: "Active" }),
-      Company.countDocuments({ status: "Active" }),
-      Application.countDocuments({ status: { $in: ["Applied", "In Review", "Interview"] } }),
+      Company.countDocuments({ status: "Active", approvalStatus: "approved" }),
+      Internship.countDocuments({ status: "Open", approvalStatus: "approved" }),
       Match.countDocuments({ status: "Offer Sent" }),
+      Company.countDocuments({ approvalStatus: "pending" }),
+      Internship.countDocuments({ approvalStatus: "pending" }),
     ]);
-    res.json({ success: true, data: { activeStudents, partnerCompanies, openInternships, successfulMatches } });
+    res.json({ success: true, data: { activeStudents, partnerCompanies, openInternships, successfulMatches, pendingCompanies, pendingInternships } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

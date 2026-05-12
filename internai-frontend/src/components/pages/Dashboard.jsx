@@ -1,4 +1,5 @@
-import { Users, Building2, Briefcase, CheckCircle, Zap, Calendar, TrendingUp } from "lucide-react";
+import { Users, Building2, Briefcase, CheckCircle, Zap, Calendar, TrendingUp, ShieldCheck } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useApi } from "../../lib/useApi";
 import { dashboardApi } from "../../lib/api";
 import { useAuth } from "../../store/auth";
@@ -9,6 +10,7 @@ const statusBadge = (s) => ({ "In Review":"badge-yellow","Interview":"badge-gree
 // ─── ADMIN DASHBOARD ────────────────────────────────────────────────
 function AdminDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: statsRes,      loading: sl } = useApi(dashboardApi.stats);
   const { data: matchesRes,    loading: ml } = useApi(dashboardApi.topMatches);
   const { data: interviewsRes, loading: il } = useApi(dashboardApi.upcomingInterviews);
@@ -16,6 +18,7 @@ function AdminDashboard() {
   const stats      = statsRes?.data;
   const matches    = matchesRes?.data || [];
   const interviews = interviewsRes?.data || [];
+  const pendingTotal = (stats?.pendingCompanies || 0) + (stats?.pendingInternships || 0);
 
   return (
     <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
@@ -40,6 +43,28 @@ function AdminDashboard() {
                 <div className="stat-value">{value ?? "—"}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Pending approvals alert */}
+        {pendingTotal > 0 && (
+          <div
+            onClick={() => navigate("/approvals")}
+            style={{ background:"#fff8e1", border:"1px solid #f0992b", borderRadius:8,
+              padding:"12px 16px", marginBottom:16, fontSize:13, color:"#92400e",
+              display:"flex", alignItems:"center", justifyContent:"space-between",
+              cursor:"pointer" }}
+          >
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <ShieldCheck size={15}/>
+              <span>
+                <strong>{pendingTotal}</strong> item{pendingTotal !== 1 ? "s" : ""} awaiting approval —
+                {stats?.pendingCompanies > 0 && ` ${stats.pendingCompanies} company registration${stats.pendingCompanies !== 1 ? "s" : ""}`}
+                {stats?.pendingCompanies > 0 && stats?.pendingInternships > 0 && ","}
+                {stats?.pendingInternships > 0 && ` ${stats.pendingInternships} internship post${stats.pendingInternships !== 1 ? "s" : ""}`}
+              </span>
+            </div>
+            <span style={{ fontSize:12, fontWeight:600 }}>Review →</span>
           </div>
         )}
 

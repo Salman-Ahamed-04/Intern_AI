@@ -174,6 +174,8 @@ export default function PostInternship() {
   const [editing, setEditing] = useState(null);
   const [refresh, setRefresh] = useState(0);
 
+  const isApproved = user?.profile?.approvalStatus === "approved";
+
   const fetchFn = useCallback(
     () => internshipsApi.list({ companyId: user?.profileId, status: "All", limit: 50 }),
     [refresh, user?.profileId]
@@ -208,8 +210,18 @@ export default function PostInternship() {
           <div className="page-title">My Internship Posts</div>
           <div className="page-subtitle">Create and manage your internship advertisements</div>
         </div>
-        <button className="btn btn-primary" onClick={() => setModal(true)}><Plus size={13}/> Post Internship</button>
+        <button className="btn btn-primary" onClick={() => setModal(true)} disabled={!isApproved}><Plus size={13}/> Post Internship</button>
       </div>
+
+      {!isApproved && (
+        <div style={{ background:"#fff8e1", border:"1px solid #f0992b", borderRadius:8, padding:"12px 16px",
+          marginBottom:16, fontSize:13, color:"#92400e", display:"flex", alignItems:"center", gap:10 }}>
+          <Clock size={15} style={{ flexShrink:0 }}/>
+          {user?.profile?.approvalStatus === "rejected"
+            ? `Your company account was rejected. ${user?.profile?.approvalNote ? `Reason: ${user.profile.approvalNote}` : "Contact admin for details."}`
+            : "Your company account is pending admin approval. You can post internships once approved."}
+        </div>
+      )}
 
       {loading ? (
         <div style={{ padding:32, textAlign:"center", color:"var(--text-muted)", fontSize:13 }}>Loading...</div>
@@ -234,7 +246,12 @@ export default function PostInternship() {
                     onClick={() => navigate(`/internship/${i._id}`)}>
                     {i.title}
                   </div>
-                  <span className={`badge ${statusMap[i.status] || "badge-gray"}`} style={{ marginLeft:8, flexShrink:0 }}>{i.status}</span>
+                  <div style={{ display:"flex", gap:4, flexShrink:0, marginLeft:8 }}>
+                    <span className={`badge ${statusMap[i.status] || "badge-gray"}`}>{i.status}</span>
+                    <span className={`badge ${i.approvalStatus === "approved" ? "badge-green" : i.approvalStatus === "rejected" ? "badge-red" : "badge-yellow"}`}>
+                      {i.approvalStatus === "approved" ? "Approved" : i.approvalStatus === "rejected" ? "Rejected" : "Pending Review"}
+                    </span>
+                  </div>
                 </div>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
                   {i.type && <span className={`badge ${typeColor[i.type] || "badge-gray"}`} style={{ fontSize:10 }}>{i.type}</span>}

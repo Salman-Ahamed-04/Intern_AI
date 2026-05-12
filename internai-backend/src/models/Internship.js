@@ -16,6 +16,9 @@ const internshipSchema = new mongoose.Schema(
     imagePublicId:{ type: String, default: "" },        // Cloudinary public_id
     status:       { type: String, enum: ["Open", "Closed"], default: "Open" },
     applicants:   { type: Number, default: 0 },
+    // Admin approval
+    approvalStatus: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
+    approvalNote:   { type: String, default: "" },
   },
   { timestamps: true }
 );

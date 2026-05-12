@@ -81,3 +81,34 @@ const deleteCompany = async (req, res) => {
 };
 
 module.exports = { getCompanies, getCompany, createCompany, updateCompany, deleteCompany };
+
+// GET /api/companies/pending  — admin: list companies awaiting approval
+const getPendingCompanies = async (req, res) => {
+  try {
+    const data = await Company.find({ approvalStatus: "pending" }).sort({ createdAt: -1 });
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// PUT /api/companies/:id/approve  — admin approves/rejects a company
+const approveCompany = async (req, res) => {
+  try {
+    const { approvalStatus, approvalNote } = req.body;
+    if (!["approved", "rejected"].includes(approvalStatus)) {
+      return res.status(400).json({ success: false, message: "approvalStatus must be approved or rejected" });
+    }
+    const company = await Company.findByIdAndUpdate(
+      req.params.id,
+      { approvalStatus, approvalNote: approvalNote || "", status: approvalStatus === "approved" ? "Active" : "Inactive" },
+      { new: true }
+    );
+    if (!company) return res.status(404).json({ success: false, message: "Company not found" });
+    res.json({ success: true, message: `Company ${approvalStatus}`, data: company });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { getCompanies, getCompany, createCompany, updateCompany, deleteCompany, getPendingCompanies, approveCompany };

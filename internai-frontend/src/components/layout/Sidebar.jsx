@@ -3,11 +3,12 @@ import { useAuth } from "../../store/auth";
 import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Briefcase, Zap, Building2,
-  Users, Calendar, BarChart2, LogOut, Search
+  Users, Calendar, BarChart2, LogOut, Search, ShieldCheck
 } from "lucide-react";
 
 const adminNav = [
   { to: "/dashboard",    icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/approvals",    icon: ShieldCheck,      label: "Approvals" },
   { to: "/applications", icon: Briefcase,        label: "Applications" },
   { to: "/matches",      icon: Zap,              label: "Matches" },
   { to: "/companies",    icon: Building2,         label: "Companies" },
