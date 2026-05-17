@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./store/auth";
 import { ThemeProvider } from "./store/theme";
 import { ToastProvider } from "./lib/toast";
+import { NotificationProvider } from "./store/notifications";
 import Layout from "./components/layout/Layout";
 
 // Shared pages
@@ -101,11 +102,13 @@ export default function App() {
   return (
     <ThemeProvider>
       <ToastProvider>
-        <AuthProvider>
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </AuthProvider>
+        <NotificationProvider>
+          <AuthProvider>
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </AuthProvider>
+        </NotificationProvider>
       </ToastProvider>
     </ThemeProvider>
   );

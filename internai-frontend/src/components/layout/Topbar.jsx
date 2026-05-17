@@ -2,7 +2,9 @@ import { Bell, Search, LogOut, Sun, Moon } from "lucide-react";
 import { useNavigate, useLocation, NavLink } from "react-router-dom";
 import { useAuth } from "../../store/auth";
 import { useTheme } from "../../store/theme";
-import { useState } from "react";
+import { useNotifications } from "../../store/notifications";
+import { useState, useRef, useEffect } from "react";
+import NotificationDropdown from "../../components/NotificationDropdown";
 
 // Nav tabs per role
 const adminTabs = [
@@ -27,11 +29,25 @@ const studentTabs = [
 export default function Topbar() {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
+  const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [search, setSearch] = useState("");
+  const [showNotifications, setShowNotifications] = useState(false);
+  const bellRef = useRef(null);
 
   const handleLogout = () => { logout(); navigate("/login"); };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (bellRef.current && !bellRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleSearch = (e) => {
     if (e.key === "Enter" && search.trim()) {
@@ -80,10 +96,23 @@ export default function Topbar() {
           </button>
 
           {/* Bell */}
-          <button className="btn btn-ghost" style={{ padding: "6px 8px", position: "relative" }}>
-            <Bell size={15} />
-            <span style={{ position: "absolute", top: 4, right: 4, width: 6, height: 6, borderRadius: "50%", background: "var(--primary)" }} />
-          </button>
+          <div ref={bellRef} style={{ position: "relative" }}>
+            <button
+              className="btn btn-ghost"
+              style={{ padding: "6px 8px", position: "relative" }}
+              onClick={() => setShowNotifications(!showNotifications)}
+              title="Notifications"
+            >
+              <Bell size={15} />
+              {unreadCount > 0 && (
+                <span style={{ position: "absolute", top: 4, right: 4, width: 6, height: 6, borderRadius: "50%", background: "var(--primary)" }} />
+              )}
+            </button>
+            <NotificationDropdown
+              isOpen={showNotifications}
+              onClose={() => setShowNotifications(false)}
+            />
+          </div>
 
           {/* User */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
