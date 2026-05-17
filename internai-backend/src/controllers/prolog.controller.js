@@ -1,11 +1,13 @@
 /**
  * prolog.controller.js
- * Bridges MongoDB data → Prolog engine → match results.
+ * Bridges MongoDB data → AI Service → match results.
  */
 const Candidate  = require("../models/Candidate");
 const Internship = require("../models/Internship");
 const Match      = require("../models/Match");
-const { runPrologMatch } = require("../services/prologEngine");
+const axios      = require("axios");
+
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:3002";
 
 // POST /api/prolog/match
 // Body: { candidateId }  — runs matching for one candidate vs all open internships
@@ -29,12 +31,18 @@ const runMatchForCandidate = async (req, res) => {
       message: "No open internships found. Add internships first via the Internships section."
     });
 
-    // 3. Run Prolog engine
-    const prologResults = await runPrologMatch(
-      String(candidate._id),
-      candidate.skills || [],
-      internships.map(i => ({ _id: i._id, title: i.title, skills: i.skills || [], companyId: i.companyId?._id }))
-    );
+    // 3. Call AI Service via HTTP
+    const aiResponse = await axios.post(`${AI_SERVICE_URL}/api/prolog/match`, {
+      candidateId: String(candidate._id),
+      candidateSkills: candidate.skills || [],
+      internships: internships.map(i => ({ _id: i._id, title: i.title, skills: i.skills || [], companyId: i.companyId?._id }))
+    });
+
+    if (!aiResponse.data.success) {
+      throw new Error(aiResponse.data.message || "AI Service error");
+    }
+
+    const prologResults = aiResponse.data.data;
 
     // 4. Filter results with score > 0 and sort by score desc
     const matched = prologResults
@@ -85,16 +93,28 @@ const runMatchAll = async (req, res) => {
 
     if (!internships.length) return res.json({ success: true, message: "No open internships", processed: 0 });
 
+    // Call AI Service via HTTP
+    const aiResponse = await axios.post(`${AI_SERVICE_URL}/api/prolog/match-all`, {
+      candidates: candidates.map(c => ({ _id: c._id, name: c.name, skills: c.skills || [] })),
+      internships: internships.map(i => ({ _id: i._id, title: i.title, skills: i.skills || [], companyId: i.companyId?._id }))
+    });
+
+    if (!aiResponse.data.success) {
+      throw new Error(aiResponse.data.message || "AI Service error");
+    }
+
+    const summary = aiResponse.data.summary;
     let totalMatches = 0;
-    const summary = [];
 
+    // Re-run matching to get detailed results for database updates
     for (const candidate of candidates) {
-      const prologResults = await runPrologMatch(
-        String(candidate._id),
-        candidate.skills || [],
-        internships.map(i => ({ _id: i._id, title: i.title, skills: i.skills || [], companyId: i.companyId?._id }))
-      );
+      const aiResponse = await axios.post(`${AI_SERVICE_URL}/api/prolog/match`, {
+        candidateId: String(candidate._id),
+        candidateSkills: candidate.skills || [],
+        internships: internships.map(i => ({ _id: i._id, title: i.title, skills: i.skills || [], companyId: i.companyId?._id }))
+      });
 
+      const prologResults = aiResponse.data.data;
       const matched = prologResults.filter(r => r.score > 0).sort((a, b) => b.score - a.score);
 
       for (const r of matched) {
@@ -114,8 +134,6 @@ const runMatchAll = async (req, res) => {
         );
         totalMatches++;
       }
-
-      summary.push({ candidateId: candidate._id, name: candidate.name, matchCount: matched.length });
     }
 
     res.json({ success: true, processed: candidates.length, totalMatches, summary });
@@ -129,16 +147,22 @@ const runMatchAll = async (req, res) => {
 // Returns the generated Prolog program for debugging
 const previewProlog = async (req, res) => {
   try {
-    const { buildPrologProgram, toAtom } = require("../services/prologEngine");
     const candidate  = await Candidate.findById(req.params.candidateId);
     if (!candidate) return res.status(404).json({ success: false, message: "Candidate not found" });
     const internships = await Internship.find({ status: "Open", approvalStatus: { $in: ["approved", "pending"] } });
-    const program = buildPrologProgram(
-      String(candidate._id),
-      candidate.skills || [],
-      internships.map(i => ({ _id: i._id, title: i.title, skills: i.skills || [] }))
-    );
-    res.json({ success: true, program });
+    
+    // Call AI Service via HTTP
+    const aiResponse = await axios.post(`${AI_SERVICE_URL}/api/prolog/preview`, {
+      candidateId: String(candidate._id),
+      candidateSkills: candidate.skills || [],
+      internships: internships.map(i => ({ _id: i._id, title: i.title, skills: i.skills || [] }))
+    });
+
+    if (!aiResponse.data.success) {
+      throw new Error(aiResponse.data.message || "AI Service error");
+    }
+
+    res.json({ success: true, program: aiResponse.data.program });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -148,7 +172,6 @@ const previewProlog = async (req, res) => {
 // Returns a full diagnostic report — candidate skills, internship count, sample Prolog output
 const diagnose = async (req, res) => {
   try {
-    const { buildPrologProgram, toAtom, runPrologMatch } = require("../services/prologEngine");
     const candidate = await Candidate.findById(req.params.candidateId);
     if (!candidate) return res.status(404).json({ success: false, message: "Candidate not found" });
 
@@ -156,21 +179,15 @@ const diagnose = async (req, res) => {
     const openInternships  = await Internship.find({ status: "Open" });
     const matchableInterns = await Internship.find({ status: "Open", approvalStatus: { $in: ["approved", "pending"] } });
 
-    const program = buildPrologProgram(
-      String(candidate._id),
-      candidate.skills || [],
-      matchableInterns.map(i => ({ _id: i._id, title: i.title, skills: i.skills || [] }))
-    );
+    // Call AI Service via HTTP
+    const aiResponse = await axios.post(`${AI_SERVICE_URL}/api/prolog/diagnose`, {
+      candidateId: String(candidate._id),
+      candidateSkills: candidate.skills || [],
+      internships: matchableInterns.map(i => ({ _id: i._id, title: i.title, skills: i.skills || [], companyId: i.companyId }))
+    });
 
-    let prologResults = [];
-    try {
-      prologResults = await runPrologMatch(
-        String(candidate._id),
-        candidate.skills || [],
-        matchableInterns.map(i => ({ _id: i._id, title: i.title, skills: i.skills || [], companyId: i.companyId }))
-      );
-    } catch (e) {
-      prologResults = [{ error: e.message }];
+    if (!aiResponse.data.success) {
+      throw new Error(aiResponse.data.message || "AI Service error");
     }
 
     res.json({
@@ -182,8 +199,8 @@ const diagnose = async (req, res) => {
         matchable: matchableInterns.length,
         approvalStatuses: [...new Set(allInternships.map(i => i.approvalStatus))],
       },
-      prologResults,
-      program,
+      prologResults: aiResponse.data.prologResults,
+      program: aiResponse.data.program,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

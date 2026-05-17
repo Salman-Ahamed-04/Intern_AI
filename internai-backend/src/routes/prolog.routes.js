@@ -6,6 +6,6 @@ router.use(protect);
 router.post("/match",                runMatchForCandidate);
 router.post("/match-all",            runMatchAll);
 router.get("/preview/:candidateId",  previewProlog);
-router.get("/diagnose/:candidateId", diagnose);   // ← debug endpoint
+router.get("/diagnose/:candidateId", diagnose);
 
 module.exports = router;

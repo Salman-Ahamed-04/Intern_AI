@@ -1,11 +1,8 @@
 /**
- * prologEngine.js  — Fixed version
+ * prologEngine.js  — Prolog Matching Engine
  *
- * Root causes of 0 matches:
- *  1. length/2 is broken in tau-prolog — replaced with custom list_len/2
- *  2. Negation \+ needed 4 backslashes in JS template literals (\\\\+)
- *  3. Skill lines were joined with literal "\n" strings not real newlines
- *  4. Missing: require('tau-prolog/modules/lists') for findall to work fully
+ * Core AI logic for matching candidates to internships using Prolog rules.
+ * This service is independent and can be called via HTTP API.
  */
 
 const pl = require("tau-prolog");
@@ -20,7 +17,7 @@ function toAtom(str) {
     .replace(/__+/g, "_") || "x";
 }
 
-/** Build the full Prolog program from MongoDB data */
+/** Build the full Prolog program from candidate and internship data */
 function buildPrologProgram(candidateId, candidateSkills, internships) {
   const cAtom = toAtom(candidateId);
   const lines  = [];
